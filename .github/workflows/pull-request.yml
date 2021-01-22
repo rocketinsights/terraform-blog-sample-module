@@ -1,0 +1,33 @@
+name: Lint and Validate Terraform Code
+
+on:
+  pull_request:
+    branches:
+      - master
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      AWS_DEFAULT_REGION: us-east-1
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install Terraform and Terragrunt
+      run: |
+        brew tap rocketinsights/tgenv
+        brew install tfenv tgenv
+        tfenv install
+        tgenv install
+
+    - name: Get Versions
+      run: |
+        terragrunt --version
+        terraform --version
+
+    - name: Terraform Init
+      run: find . -type f -name "*.tf" -exec dirname {} \;|sort -u | while read m; do (cd "$m" && terraform init -input=false -backend=false) || exit 1; done
+
+    - name: Validate Terraform configs
+      run: find . -name ".terraform" -prune -o -type f -name "*.tf" -exec dirname {} \;|sort -u | while read m; do (cd "$m" && terraform validate && echo "√ $m") || exit 1 ; done
+
+    - name: Check Terraform config formatting 
+      run: terraform fmt -write=false -recursive
